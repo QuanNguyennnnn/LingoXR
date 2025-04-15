@@ -1,10 +1,24 @@
-import React, { useState } from 'react';
-import SwipeableViews from 'react-swipeable-views';
-import { Button, Dialog, DialogContent, DialogActions, Typography, DialogTitle } from '@mui/material';
-import './TutorialDialog.css'; // Import CSS for responsive styling
+import React, { useState, useRef } from 'react';
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Autoplay, EffectFade } from 'swiper/modules';
+import 'swiper/css';
+import 'swiper/css/effect-fade';
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  Typography,
+  DialogTitle,
+  Stack,
+  IconButton
+} from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
+import './TutorialDialog.css';
 
 const TutorialDialog = ({ open, onClose }) => {
   const [index, setIndex] = useState(0);
+  const swiperRef = useRef();
+  const autoplayRef = useRef();
 
   const slides = [
     { image: '/logo2.jpg', text: 'Welcome to LingoXR' },
@@ -16,64 +30,109 @@ const TutorialDialog = ({ open, onClose }) => {
 
   const handleClose = () => {
     setIndex(0);
+    swiperRef.current?.slideTo(0);
     onClose();
   };
 
   return (
-      <Dialog
-        open={open}
-        onClose={handleClose}
-        PaperProps={{
-          style: {
-            // boxShadow: '0px 4px 20px rgba(0, 0, 0, 0.3)', // Custom box shadow
-            borderRadius: '8px', // Optional: Add rounded corners
-            backgroundColor:"transparent"
-          },
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      PaperProps={{
+        style: {
+          borderRadius: '8px',
+          backgroundColor: "transparent",
+        },
+      }}
+    >
+      <DialogTitle
+        style={{
+          textAlign: "center",
+          color: "white",
+          letterSpacing: "2px",
+          backgroundColor: "#050b12",
+          position: 'relative',
         }}
-      >     
-        <DialogTitle 
-          style={{textAlign:"center", color:"white", letterSpacing:"2px", backgroundColor:"#050b12"}}
-          PaperProps={{
-            style: {
-              // boxShadow: '0px 4px 20px rgba(0, 0, 0, 0.3)', // Custom box shadow
-              backgroundColor:"black"
-            },
-          }}  
-        ><b>TUTORIAL</b></DialogTitle>
-        <div className="tutorial-container">
-          
-          <SwipeableViews index={index} onChangeIndex={setIndex} className="swipeable-view">
+      >
+        <b>TUTORIAL</b>
+        {/* Skip button */}
+        <IconButton
+          onClick={handleClose}
+          style={{ position: 'absolute', right: 8, top: 8, color: 'white' }}
+          aria-label="skip tutorial"
+        >
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+
+      <DialogContent style={{ padding: 0 }}>
+        <div
+          className="tutorial-container"
+          onMouseEnter={() => autoplayRef.current?.stop()}
+          onMouseLeave={() => autoplayRef.current?.start()}
+        >
+          <Swiper
+            modules={[Autoplay, EffectFade]}
+            onSlideChange={(swiper) => setIndex(swiper.activeIndex)}
+            onSwiper={(swiper) => {
+              swiperRef.current = swiper;
+              autoplayRef.current = swiper.autoplay;
+            }}
+            effect="fade"
+            fadeEffect={{ crossFade: true }}
+            autoplay={{ delay: 8000, disableOnInteraction: false }}
+            allowTouchMove={false}
+            style={{ height: '100%' }}
+          >
             {slides.map((slide, i) => (
-              <div key={i} className="tutorial-slide">
-                <div className="left-column">
-                  <img src={slide.image} alt={`Slide ${index + 1}`} className="tutorial-image" />
-                </div>
-                <div className="right-column">
-                  <div>
-                  <Typography  className="tutorial-text">
-                    {slide.text}
-                  </Typography>
+              <SwiperSlide key={i}>
+                <div className="tutorial-slide">
+                  <div className="left-column">
+                    <img src={slide.image} alt={`Slide ${i + 1}`} className="tutorial-image" />
                   </div>
-                  <div className="button-container">
-                    {index === slides.length - 1 ? (
-                      <Button onClick={handleClose} variant="contained" color="primary">
-                        Start LingoXR
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="contained"
-                        color="primary"
-                        onClick={() => setIndex((prev) => prev + 1)}
-                      >
-                        Next
-                      </Button>
-                    )}
+                  <div className="right-column">
+                    <Typography className="tutorial-text">{slide.text}</Typography>
+                    <Typography className="step-indicator">Step {index + 1} of {slides.length}</Typography>
+
+                    <div className="button-container">
+                      <Stack direction="row" spacing={2}>
+                        {i > 0 && (
+                          <Button
+                            variant="outlined"
+                            color="primary"
+                            onClick={() => {
+                              setIndex(i - 1);
+                              swiperRef.current?.slideTo(i - 1);
+                            }}
+                          >
+                            Back
+                          </Button>
+                        )}
+                        {i === slides.length - 1 ? (
+                          <Button onClick={handleClose} variant="contained" color="primary">
+                            Start LingoXR
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="contained"
+                            color="primary"
+                            onClick={() => {
+                              setIndex(i + 1);
+                              swiperRef.current?.slideTo(i + 1);
+                            }}
+                          >
+                            Next
+                          </Button>
+                        )}
+                      </Stack>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </SwiperSlide>
             ))}
-          </SwipeableViews>
+          </Swiper>
         </div>
+      </DialogContent>
     </Dialog>
   );
 };

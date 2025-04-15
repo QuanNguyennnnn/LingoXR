@@ -736,11 +736,10 @@ const App = () => {
           <div><DeleteRounded/>   </div>  
         </div>
       }
-
-      {name && <div onClick={resetView} style={{ position: 'absolute', bottom: '30px', right: '45%', color: '#333', textAlign:'center' }}>
-                <div style={{padding:'12px', backgroundColor:'#ddd', borderRadius:'20px', fontSize:12}}>Reset View</div>  
-              </div>
-      }
+      {name && (<div onClick={resetView} className="reset-view-button">
+          <div className="reset-view-inner">Reset View</div>
+        </div>
+      )}
       {name && <div onClick={handleLogout} style={{ position: 'absolute', top: '20px', right: '30px', color: 'white', textAlign:'center' }}><div><FaceRounded/> </div><div>{name}</div></div>}
       <div onClick={handleSoundButton} style={{ position: 'absolute', top: '20px', right: '250px', color: 'white', textAlign:'center' }}><div> { !isMusicPlaying ? <VolumeMuteRounded/>: <VolumeUpRounded/> }</div></div>
 
