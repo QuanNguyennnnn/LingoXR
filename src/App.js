@@ -16,6 +16,45 @@ import 'react-toastify/dist/ReactToastify.css'; // Import styles for toast
 import { Dialog, DialogActions, DialogContent, DialogTitle, Button } from '@mui/material';
 import TutorialDialog from './components/TutorialDialog';
 
+// ==================== AUTH LOCAL ====================
+const registerUser = (username, password) => {
+  const users = JSON.parse(localStorage.getItem('users')) || [];
+  if (users.find(u => u.username === username)) {
+    return { success: false, message: "User already exists" };
+  }
+  users.push({ username, password, activeNodes: [] });
+  localStorage.setItem('users', JSON.stringify(users));
+  return { success: true };
+};
+
+const loginUser = (username, password) => {
+  const users = JSON.parse(localStorage.getItem('users')) || [];
+  const user = users.find(u => u.username === username && u.password === password);
+  if (!user) return { success: false, message: "Invalid credentials" };
+  localStorage.setItem("isLoggedIn", "true");
+  localStorage.setItem("currentUser", username);
+  return { success: true };
+};
+
+const getCurrentUser = () => {
+  const users = JSON.parse(localStorage.getItem('users')) || [];
+  const username = localStorage.getItem("currentUser");
+  return users.find(u => u.username === username);
+};
+
+const saveProgressLocal = (activeNodes) => {
+  const users = JSON.parse(localStorage.getItem('users')) || [];
+  const username = localStorage.getItem("currentUser");
+  const updatedUsers = users.map(u => u.username === username ? { ...u, activeNodes } : u);
+  localStorage.setItem('users', JSON.stringify(updatedUsers));
+};
+
+const loadProgressLocal = () => {
+  const user = getCurrentUser();
+  return user?.activeNodes || [];
+};
+// ====================================================
+
 
 // Define initial tutorial steps
 const initialTutorialSteps = [
@@ -431,33 +470,53 @@ const App = () => {
   };
 
   const onLogin = async (credentials, isRegistering) => {
-    const endpoint = isRegistering ? `${process.env.REACT_APP_API_URL}/api/register`: `${process.env.REACT_APP_API_URL}/api/login`;
-    console.log(" endpoint = ", endpoint);
-
-
-    
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(credentials),
-      });
-      const data = await response.json();
-
-      if (data.success) {
-        localStorage.setItem('username', credentials.username); // Save the session in localStorage
-
-        setName(credentials.username);
-        playAudio();
-        setIsNameModalOpen(false); // Close the modal on successful login/register
-        loadProgress();
-        handleMoveCamera();
-      } else {
-        alert("Something went wrong. Please try a different username/password."); // Display any error message
+    const users = JSON.parse(localStorage.getItem("users")) || [];
+  
+    if (isRegistering) {
+      // Check if username already exists
+      const existingUser = users.find(user => user.username === credentials.username);
+      if (existingUser) {
+        alert("Username already exists");
+        return;
       }
-    } catch (error) {
-      console.error('Login/Register error:', error);
-      alert("An error occurred. Please try again.");
+  
+      // Create new user
+      const newUser = {
+        username: credentials.username,
+        password: credentials.password,
+        activeNodes: []
+      };
+      users.push(newUser);
+      localStorage.setItem("users", JSON.stringify(users));
+      localStorage.setItem("username", credentials.username);
+      setName(credentials.username);
+      setIsNameModalOpen(false);
+      playAudio();
+      handleMoveCamera();
+      return;
+    } else {
+      // Login logic
+      const matchedUser = users.find(
+        user =>
+          user.username === credentials.username &&
+          user.password === credentials.password
+      );
+      if (!matchedUser) {
+        alert("Invalid credentials");
+        return;
+      }
+  
+      localStorage.setItem("username", credentials.username);
+      setName(credentials.username);
+      setIsNameModalOpen(false);
+      playAudio();
+  
+      // Load progress
+      if (matchedUser.activeNodes?.length > 0) {
+        setActiveNodes(matchedUser.activeNodes);
+      }
+  
+      handleMoveCamera();
     }
   };
 
@@ -499,82 +558,48 @@ const App = () => {
 
   const saveProgress = (showSave) => {
     setIsSaveLoading(true);
-    const token = localStorage.getItem('token');
-
-    // Convert activeNodes data to a serializable form
     const serializableActiveNodes = activeNodes.map(node => ({
-        name: node.name,
-        prefix: node.prefix,
-        suffix: node.suffix,
-        translation: node.translation,
-        position: node.position,
-        level: node.level,
-        color: node.color,
-        compounds: node.compounds,
-        parentCompounds: node.parentCompounds,
-        parentPosition:node.parentPosition,
-        notes:node.notes,
-        link:node.link,
-        image:node.image
-        // Add other serializable fields as needed, exclude any non-serializable ones
+      name: node.name,
+      prefix: node.prefix,
+      suffix: node.suffix,
+      translation: node.translation,
+      position: node.position,
+      level: node.level,
+      color: node.color,
+      compounds: node.compounds,
+      parentCompounds: node.parentCompounds,
+      parentPosition: node.parentPosition,
+      notes: node.notes,
+      link: node.link,
+      image: node.image
     }));
-
-    const progressData = {username:name, activeNodes: serializableActiveNodes };
-
-    fetch('https://lingoxr.semanticcreation.com/api/save-progress', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(progressData), // Ensure data is serializable
-    })
-    .then(response => response.json())
-    .then(data => {
-      setIsSaveLoading(false)
-      setIsSaved(true);
-
-      if(showSave){
-        if (data.message === 'Progress saved successfully') {
-          // Show success toast
-          toast.success('Progress saved successfully!');
-        } else {
-          // Show error toast
-          toast.error('Error saving progress. Please try again!');
-        }
-      }
-    })
-    .catch(error => console.error('Error:', error));
+  
+    const users = JSON.parse(localStorage.getItem("users")) || [];
+    const username = localStorage.getItem("username");
+    const updatedUsers = users.map(user =>
+      user.username === username
+        ? { ...user, activeNodes: serializableActiveNodes }
+        : user
+    );
+    localStorage.setItem("users", JSON.stringify(updatedUsers));
+  
+    setIsSaveLoading(false);
+    setIsSaved(true);
+    if (showSave) toast.success("Progress saved locally!");
   };
 
 
   const loadProgress = () => {
-    // alert("hello");
-    const token = localStorage.getItem('token');
- 
-    fetch('https://lingoxr.semanticcreation.com/api/load-progress', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({username:name})
-    })
-    .then(response => response.json())
-    .then(data => {
-        // console.log(data);
-        if (data.data) {
-            // console.log('Progress loaded:', data.data);
-            handleMoveCamera();
-            // console.log(data.data.activeNodes);
-            setActiveNodes(data.data.activeNodes);
-        } else {
-            console.error('No progress found');
-        }
-    })
-    .catch(error => 
-      console.error('Error loading progress:', error)
-    );
+    const users = JSON.parse(localStorage.getItem('users')) || [];
+    const username = localStorage.getItem('currentUser');
+    const user = users.find(u => u.username === username);
+  
+    if (user?.activeNodes?.length > 0) {
+      handleMoveCamera(); // same as original
+      setActiveNodes(user.activeNodes);
+    } else {
+      console.error("No saved progress found in localStorage");
+    }
   };
 
 
